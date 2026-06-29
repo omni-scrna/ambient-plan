@@ -36,8 +36,8 @@ stages:
         name: "HGMM dataset downloads"
         software_environment: data_env
         repository:
-          url: /projects/site/pred/neurogenomics/users/kodermam/ambient_benchmark/ambient_data_download
-          commit: HEAD
+          url: https://github.com/omni-scrna/ambient-data-download
+          commit: 5c937e9
         parameters:
           - dataset_name: ["hgmm1k","hgmm5k","hgmm6k","hgmm10k","hgmm12k","hgmm20k"]
     
@@ -52,8 +52,8 @@ stages:
         name: "EmptyDrops cell calling"
         software_environment: r_droputils
         repository:
-          url: /projects/site/pred/neurogenomics/users/kodermam/ambient_benchmark/cell_calling
-          commit: HEAD
+          url: https://github.com/omni-scrna/cell-calling
+          commit: ceaa24c
 
   - id: cleaning_and_cell_calling
     inputs:
@@ -67,8 +67,8 @@ stages:
         software_environment: cellbender
         entrypoint: cellbender
         repository:
-          url: /projects/site/pred/neurogenomics/users/kodermam/ambient_benchmark/ambient-py
-          commit: HEAD
+          url: https://github.com/omni-scrna/ambient-py
+          commit: 8b8d0d2
 
   - id: cleaning
     inputs:
@@ -83,15 +83,15 @@ stages:
         software_environment: r_cleaning
         entrypoint: soupx
         repository:
-          url: /projects/site/pred/neurogenomics/users/kodermam/ambient_benchmark/ambient-r
-          commit: HEAD
+          url: https://github.com/omni-scrna/ambient-r
+          commit: c1f32ce
       - id: decontx
         name: "DecontX ambient removal"
         software_environment: r_cleaning
         entrypoint: decontx
         repository:
-          url: /projects/site/pred/neurogenomics/users/kodermam/ambient_benchmark/ambient-r
-          commit: HEAD
+          url: https://github.com/omni-scrna/ambient-r
+          commit: c1f32ce
         parameters:
           - use_background: ["true","false"]
       - id: sccdc
@@ -99,15 +99,15 @@ stages:
         software_environment: r_cleaning
         entrypoint: sccdc
         repository:
-          url: /projects/site/pred/neurogenomics/users/kodermam/ambient_benchmark/ambient-r
-          commit: HEAD
+          url: https://github.com/omni-scrna/ambient-r
+          commit: c1f32ce
       - id: scar
         name: "scAR ambient removal"
         software_environment: py_cleaning
         entrypoint: scar
         repository:
-          url: /projects/site/pred/neurogenomics/users/kodermam/ambient_benchmark/ambient-py
-          commit: HEAD
+          url: https://github.com/omni-scrna/ambient-py
+          commit: 8b8d0d2
         parameters:
           - epochs: 200
             batch_size: 64
@@ -116,5 +116,5 @@ stages:
         software_environment: py_cleaning
         entrypoint: cellclear
         repository:
-          url: /projects/site/pred/neurogenomics/users/kodermam/ambient_benchmark/ambient-py
-          commit: HEAD
+          url: https://github.com/omni-scrna/ambient-py
+          commit: 8b8d0d2
