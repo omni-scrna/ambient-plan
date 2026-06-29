@@ -1,0 +1,120 @@
+name: ambient-rna-benchmark
+id: ambient_rna_benchmark
+description: Benchmark of ambient RNA removal methods for scRNA-seq
+benchmarker: "Marusa Koderman <marusa.koderman@.uzh.ch>"
+
+# benchmark configuration
+version: "0.0.1"
+api_version: "0.4.0"
+
+software_backend: "conda"
+
+software_environments:
+  data_env:
+    name: Data download
+    conda: envs/data.yml
+  r_droputils:
+    name: EmptyDrops cell calling (R)
+    conda: envs/r_droputils.yml
+  cellbender:
+    name: CellBender
+    conda: envs/cellbender.yml
+  r_cleaning:
+    name: R ambient removal methods (SoupX, DecontX, scCDC)
+    conda: envs/r_cleaning.yml
+  py_cleaning:
+    name: Python ambient removal methods (scAR, CellClear)
+    conda: envs/py_cleaning.yml
+
+stages:
+  - id: ambient_data_download
+    outputs:
+      - id: rawdata.h5
+        path: "{dataset}_raw.h5"
+    modules:
+      - id: datasets
+        name: "HGMM dataset downloads"
+        software_environment: data_env
+        repository:
+          url: /projects/site/pred/neurogenomics/users/kodermam/ambient_benchmark/ambient_data_download
+          commit: HEAD
+        parameters:
+          - dataset_name: ["hgmm1k","hgmm5k","hgmm6k","hgmm10k","hgmm12k","hgmm20k"]
+    
+  - id: cell_calling
+    inputs:
+      - rawdata.h5
+    outputs:
+      - id: filtered.h5ad
+        path: "{dataset}_filtered.h5ad"
+    modules:
+      - id: emptydrops
+        name: "EmptyDrops cell calling"
+        software_environment: r_droputils
+        repository:
+          url: /projects/site/pred/neurogenomics/users/kodermam/ambient_benchmark/cell_calling
+          commit: HEAD
+
+  - id: cleaning_and_cell_calling
+    inputs:
+      - rawdata.h5
+    outputs:
+      - id: corrected.h5ad
+        path: "{dataset}_corrected.h5ad"
+    modules:
+      - id: cellbender
+        name: "CellBender ambient removal + cell calling"
+        software_environment: cellbender
+        entrypoint: cellbender
+        repository:
+          url: /projects/site/pred/neurogenomics/users/kodermam/ambient_benchmark/ambient-py
+          commit: HEAD
+
+  - id: cleaning
+    inputs:
+      - rawdata.h5
+      - filtered.h5ad
+    outputs:
+      - id: corrected.h5ad
+        path: "{dataset}_corrected.h5ad"
+    modules:
+      - id: soupx
+        name: "SoupX ambient removal"
+        software_environment: r_cleaning
+        entrypoint: soupx
+        repository:
+          url: /projects/site/pred/neurogenomics/users/kodermam/ambient_benchmark/ambient-r
+          commit: HEAD
+      - id: decontx
+        name: "DecontX ambient removal"
+        software_environment: r_cleaning
+        entrypoint: decontx
+        repository:
+          url: /projects/site/pred/neurogenomics/users/kodermam/ambient_benchmark/ambient-r
+          commit: HEAD
+        parameters:
+          - use_background: ["true","false"]
+      - id: sccdc
+        name: "scCDC ambient removal"
+        software_environment: r_cleaning
+        entrypoint: sccdc
+        repository:
+          url: /projects/site/pred/neurogenomics/users/kodermam/ambient_benchmark/ambient-r
+          commit: HEAD
+      - id: scar
+        name: "scAR ambient removal"
+        software_environment: py_cleaning
+        entrypoint: scar
+        repository:
+          url: /projects/site/pred/neurogenomics/users/kodermam/ambient_benchmark/ambient-py
+          commit: HEAD
+        parameters:
+          - epochs: 200
+            batch_size: 64
+      - id: cellclear
+        name: "CellClear ambient removal"
+        software_environment: py_cleaning
+        entrypoint: cellclear
+        repository:
+          url: /projects/site/pred/neurogenomics/users/kodermam/ambient_benchmark/ambient-py
+          commit: HEAD
