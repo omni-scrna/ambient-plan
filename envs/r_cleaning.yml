@@ -1,0 +1,20 @@
+# TODO: regenerate via `pixi workspace export conda-environment` in ambient-r/
+name: r_cleaning
+channels:
+- conda-forge
+- bioconda
+- nodefaults
+dependencies:
+- r-base >=4.4
+- bioconductor-decontx *
+- bioconductor-singlecellexperiment *
+- bioconductor-dropletutils *
+- bioconductor-anndatar *
+- r-matrix *
+- r-yaml *
+- r-argparser *
+- r-soupx *
+- bioconductor-scran *
+- bioconductor-scuttle *
+- r-seurat >=5
+- r-remotes *

@@ -4,117 +4,176 @@ description: Benchmark of ambient RNA removal methods for scRNA-seq
 benchmarker: "Marusa Koderman <marusa.koderman@.uzh.ch>"
 
 # benchmark configuration
-version: "0.0.1"
+version: "0.0.3"
 api_version: "0.4.0"
 
 software_backend: "conda"
 
 software_environments:
-  data_env:
-    name: Data download
-    conda: envs/data.yml
-  r_droputils:
-    name: EmptyDrops cell calling (R)
-    conda: envs/r_droputils.yml
-  cellbender:
-    name: CellBender
-    conda: envs/cellbender.yml
+  r_conda:
+    name: R conda env (for standard data downloads)
+    conda: envs/r.yml
   r_cleaning:
     name: R ambient removal methods (SoupX, DecontX, scCDC)
     conda: envs/r_cleaning.yml
-  py_cleaning:
-    name: Python ambient removal methods (scAR, CellClear)
-    conda: envs/py_cleaning.yml
+  scrapper:
+    name: scrapper (filtering)
+    conda: envs/scrapper.yml
+  # cellbender:
+  #   name: CellBender
+  #   conda: envs/cellbender.yml
+  # py_cleaning:
+  #   name: Python ambient removal methods (scAR, CellClear)
+  #   conda: envs/py_cleaning.yml
 
 stages:
-  - id: ambient_data_download
+  # ── Data download (root stage) ───────────────────────────────────────
+
+  - id: data_download
     outputs:
-      - id: rawdata.h5
-        path: "{dataset}_raw.h5"
+      - id: rawdata_raw_h5ad
+        path: "{dataset}_raw.h5ad"
     modules:
-      - id: datasets
+      - id: datasets_ambient
         name: "HGMM dataset downloads"
-        software_environment: data_env
+        software_environment: r_conda
         repository:
-          url: https://github.com/omni-scrna/ambient-data-download
-          commit: 5c937e9
+          url: /projects/site/pred/neurogenomics/users/kodermam/omni-scrna/1-data
+          commit: add-ambient-removal
+          entrypoint: download_raw
+      - id: datasets_standard
+        name: "Passthrough"
+        software_environment: r_conda
+        repository:
+          url: /projects/site/pred/neurogenomics/users/kodermam/omni-scrna/1-data
+          commit: add-ambient-removal
+          entrypoint: download_raw
         parameters:
-          - dataset_name: ["hgmm1k","hgmm5k","hgmm6k","hgmm10k","hgmm12k","hgmm20k"]
-    
+          - dataset_name: "be1"
+            passthrough: true
+
   - id: cell_calling
     inputs:
-      - rawdata.h5
+      - rawdata_raw_h5ad
     outputs:
-      - id: filtered.h5ad
-        path: "{dataset}_filtered.h5ad"
+      - id: called_cells_tsv
+        path: "{dataset}_called_cells.tsv"
     modules:
       - id: emptydrops
         name: "EmptyDrops cell calling"
-        software_environment: r_droputils
+        software_environment: r_conda
+        exclude:
+          - datasets_standard
         repository:
-          url: https://github.com/omni-scrna/cell-calling
-          commit: ceaa24c
+          url: /projects/site/pred/neurogenomics/users/kodermam/omni-scrna/cell-calling
+          commit: main
+      - id: no_cell_calling
+        name: "Passthrough"
+        software_environment: r_conda
+        exclude:
+          - datasets_ambient
+        repository:
+          url: /projects/site/pred/neurogenomics/users/kodermam/omni-scrna/cell-calling
+          commit: main
+        parameters:
+          - passthrough: true
 
-  - id: cleaning_and_cell_calling
-    inputs:
-      - rawdata.h5
-    outputs:
-      - id: corrected.h5ad
-        path: "{dataset}_corrected.h5ad"
-    modules:
-      - id: cellbender
-        name: "CellBender ambient removal + cell calling"
-        software_environment: cellbender
-        entrypoint: cellbender
-        repository:
-          url: https://github.com/omni-scrna/ambient-py
-          commit: 8b8d0d2
 
   - id: cleaning
     inputs:
-      - rawdata.h5
-      - filtered.h5ad
+      - rawdata_raw_h5ad
+      - called_cells_tsv
     outputs:
-      - id: corrected.h5ad
-        path: "{dataset}_corrected.h5ad"
+      - id: rawdata_h5ad
+        path: "{dataset}.h5ad"
+      - id: rawdata_clusters_truth
+        path: "{dataset}.clusters_truth.tsv"
+      - id: rawdata_clusters_truth_num
+        path: "{dataset}.clusters_truth_num.txt"
+      - id: properties_info
+        path: "{dataset}_properties.yaml"
     modules:
-      - id: soupx
-        name: "SoupX ambient removal"
-        software_environment: r_cleaning
-        entrypoint: soupx
-        repository:
-          url: https://github.com/omni-scrna/ambient-r
-          commit: c1f32ce
       - id: decontx
         name: "DecontX ambient removal"
         software_environment: r_cleaning
-        entrypoint: decontx
+        exclude:
+          - datasets_standard
         repository:
-          url: https://github.com/omni-scrna/ambient-r
-          commit: c1f32ce
+          url: /projects/site/pred/neurogenomics/users/kodermam/omni-scrna/ambient-r
+          commit: main
+          entrypoint: decontx
         parameters:
           - use_background: ["true","false"]
-      - id: sccdc
-        name: "scCDC ambient removal"
-        software_environment: r_cleaning
-        entrypoint: sccdc
+      - id: no_cleaning
+        name: "Download of filtered datasets"
+        software_environment: r_conda
+        exclude:
+          - datasets_ambient
         repository:
-          url: https://github.com/omni-scrna/ambient-r
-          commit: c1f32ce
-      - id: scar
-        name: "scAR ambient removal"
-        software_environment: py_cleaning
-        entrypoint: scar
-        repository:
-          url: https://github.com/omni-scrna/ambient-py
-          commit: 8b8d0d2
+          url: /projects/site/pred/neurogenomics/users/kodermam/omni-scrna/1-data
+          commit: add-ambient-removal
+          entrypoint: download_filtered
         parameters:
-          - epochs: 200
-            batch_size: 64
-      - id: cellclear
-        name: "CellClear ambient removal"
-        software_environment: py_cleaning
-        entrypoint: cellclear
+          - dataset_name: "be1"
+            batch_var: Sample
+            labels_var: clusters.truth
+            sample_var: Sample
+      # - id: soupx
+      #   name: "SoupX ambient removal"
+      #   software_environment: r_cleaning
+      #   exclude:
+      #     - datasets_standard
+      #   repository:
+      #     url: /projects/site/pred/neurogenomics/users/kodermam/omni-scrna/ambient-r
+      #     commit: main
+      #     entrypoint: soupx
+      # - id: sccdc
+      #   name: "scCDC ambient removal"
+      #   software_environment: r_cleaning
+      #   exclude:
+      #     - datasets_standard
+      #   repository:
+      #     url: /projects/site/pred/neurogenomics/users/kodermam/omni-scrna/ambient-r
+      #     commit: main
+      #     entrypoint: sccdc
+      # - id: scar
+      #   name: "scAR ambient removal"
+      #   software_environment: py_cleaning
+      #   exclude:
+      #     - datasets_standard
+      #   repository:
+      #     url: /projects/site/pred/neurogenomics/users/kodermam/omni-scrna/ambient-py
+      #     commit: main
+      #     entrypoint: scar
+      #   parameters:
+      #     - epochs: 200
+      #       batch_size: 64
+      # - id: cellclear
+      #   name: "CellClear ambient removal"
+      #   software_environment: py_cleaning
+      #   exclude:
+      #     - datasets_standard
+      #   repository:
+      #     url: /projects/site/pred/neurogenomics/users/kodermam/omni-scrna/ambient-py
+      #     commit: main
+      #     entrypoint: cellclear
+
+  # ── QC filtering ─────────────────────────────────────────────────────
+
+  - id: FILT
+    inputs:
+      - rawdata_h5ad
+      - properties_info
+    outputs:
+      - id: filtered_cellids
+        path: "{dataset}_cellids.txt.gz"
+      - id: filtered_featureids
+        path: "{dataset}_featureids.txt.gz"
+    modules:
+      - id: fi-scrapper
+        name: "scrapper-style filtering"
+        software_environment: scrapper
         repository:
-          url: https://github.com/omni-scrna/ambient-py
-          commit: 8b8d0d2
+          url: /projects/site/pred/neurogenomics/users/kodermam/omni-scrna/scrapper
+          commit: main
+          entrypoint: filter
