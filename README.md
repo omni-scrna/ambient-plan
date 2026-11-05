@@ -5,7 +5,7 @@ existing `omni-scrna` modules, to test whether ambient RNA removal can be merged
 benchmark. For now it only covers the mixed human/mouse HGMM datasets (no `be1`/non-ambient
 datasets) and only `decontx`/no-cleaning (`CellBender` is wired in but disabled, see below).
 
-**Experimental:** this plan uses `foreach` and `gather`, features that only exist on
+**Experimental:** this plan uses `foreach` and `over`, features that only exist on
 omnibenchmark's unreleased `feat/foreach-outputs` branch (requires `api_version: "0.8.0"`,
 installed via `pip install git+https://github.com/omnibenchmark/omnibenchmark.git@feat/foreach-outputs`)
 
@@ -46,14 +46,16 @@ majority_ratio)` TSV with species assignments;
 
 ## `concatenate_dataset` stage
 
-A `gather` stage (`group_by: data_download`) that collects every pool's `filtered_h5ad` and
-`demultiplexed_tsv`, concatenates them into one h5ad per logical dataset, and joins species labels
-onto `obs` by `(pool_id, cell_id)`.
+A stage with `over: pool_id` that closes the `foreach`: one node per upstream lineage (dataset
+module × cell calling × cleaning variant × demultiplexing), each receiving every pool's
+`filtered_h5ad` and `demultiplexed_tsv` (same sorted pool order for both flags), concatenating them
+into one h5ad and joining species labels onto `obs` by `(pool_id, cell_id)`. With three cleaning
+variants that is three `concatenate` nodes, four pools each.
 
 ## Known issues
 
-- **`group_by` conflates downstream method choices.** `group_by: data_download` only partitions by
-  the ancestor module of `data_download` — it does not keep the `cleaning` stage's method choice
-  (`decontx` theta=true/false vs. `no_cleaning`) as separate groups, so `concatenate_dataset`
-  currently receives all 3 cleaning variants of all 4 pools mixed together and the join blows up.
+- **`gather`/`group_by` was the wrong fan-in here** (fixed by `over: pool_id`). `group_by: <stage>`
+  keeps that stage's module and merges every other axis, so `concatenate_dataset` received all 3
+  cleaning variants of all 4 pools in one node and the `(pool_id, cell_id)` join blew up. `over`
+  is the complement: it collapses only the captured pools. See omnibenchmark design 013 §3.3.
 - **No `FILT` stage yet.** `FILT`'s script (`scrapper`) expects its h5ad input under the  id `rawdata_h5ad` (its schema    hardcodes `--rawdata_h5ad`), so re-adding it means renaming `concatenate_dataset`'s `dataset_h5ad` output to `rawdata_h5ad` (or adjusting `FILT`'s `inputs:`) to match.
