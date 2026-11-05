@@ -1,20 +1,59 @@
 # ambient-rna-benchmark
 
-This repo contains a benchmark plan which combines modules for ambient RNA removal with some existing `omni-scrna` modules to test whether ambient-rna removal can be merged with the existing benchmark. The plan consists of four stages: `data_download → cell_calling → cleaning → FILT`.
+This repo contains a benchmark plan which combines modules for ambient RNA removal with some
+existing `omni-scrna` modules, to test whether ambient RNA removal can be merged with the existing
+benchmark. For now it only covers the mixed human/mouse HGMM datasets (no `be1`/non-ambient
+datasets) and only `decontx`/no-cleaning (`CellBender` is wired in but disabled, see below).
+
+**Experimental:** this plan uses `foreach` and `gather`, features that only exist on
+omnibenchmark's unreleased `feat/foreach-outputs` branch (requires `api_version: "0.8.0"`,
+installed via `pip install git+https://github.com/omnibenchmark/omnibenchmark.git@feat/foreach-outputs`)
+
+Stages: `data_download → cell_calling → cleaning → demultiplexing → concatenate_dataset`.
+There is currently no `FILT` stage (see [Known issues](#known-issues)).
 
 ## `data_download` stage
 
-This stage is split into 2 modules: `datasets_standard` and `datasets_ambient`. The latter uses code stored in the `1-data` repo to download **raw** mixed species (human and mouse) datasets from 10x. Each downloaded dataset represents one 10x run/one pool. Data for all pools is combined into one big matrix and stored as `h5ad`. For pre-filtered datasets the `datasets_standard` module writes an empty `h5ad` file.
+One module, `d_hgmm`, downloads all 4 HGMM pools and decides the `pool_id` values at runtime via `foreach: pool_id` on its `rawdata_h5ad` output (`path: "{pool_id}/raw.h5ad"`) — omnibenchmark discovers the pool directories by globbing after the module runs, and every stage below fans out automatically, one node per discovered pool. `properties_info` (`mixed_species`/`batch_var`/`sample_var`/`labels_var`) is a single output shared across all pools, since those values don't vary by pool for this dataset.
 
 ## `cell_calling` stage
 
-This stage is split into 2 modules: `emptydrops` and `no_cell_calling`. The former loops over pools to call cells in each pool using `EmptyDrops` and assign each cell in a pool to a species. `sample_id` is then defined as `{pool_id}_{species}`. It excludes datasets from the `datasets_standard` module. The `no_cell_calling` module writes empty files for all `dataset_standard` outputs and exludes `datasets_ambient` outputs.
+One module, `emptydrops`, runs `EmptyDrops` per pool and writes the called cell barcodes. Species
+assignment does *not* happen here (see `demultiplexing` below) — this stage is pool-count-agnostic
+and dataset-property-agnostic by design.
 
 ## `cleaning` stage
 
-This stage is split into 2 modules: `decontx` and `no_cleaning`. The former runs decontx on `datasets_ambient` either in default mode (`--use-background false`) or using the raw matrix as background (`--use-background true`) and returns the same outputs as the `DATA` stage of the main benchmark (`sample_id` values are currently use as cluster truths). The `no_cleaning` module downloads datasets which have already been filtered. 
+Two modules:
+- `decontx` — runs DecontX, either in default mode or using the raw matrix as background
+  (`use_background: true|false`), on the called cells.
+- `no_cleaning` — subsets the raw counts to the called-cell barcodes with
+  no correction applied.
 
-## `FILT` stage
+Both just output the (corrected or uncorrected) matrix as `filtered_h5ad` — no dataset-level
+metadata, no species labels.
 
-Is the same as the `FILT` stage in the main benchmark.
+A third option, `cell_calling_and_cleaning` (`CellBender`, which does both calling and ambient
+removal in one step), is implemented but commented out in `benchmark_conda.yaml` pending GPU
+testing (`requires_capabilities: [gpu]`).
 
+## `demultiplexing` stage
+
+One module, `dm_mixed_species`, assigns each called cell to human/mouse/ambiguous based on the
+ratio of `GRCh38_`/`GRCm39_`-prefixed gene counts — **in the cleaned matrix**, i.e. species
+assignment runs after ambient removal, not on raw counts. Writes a `(pool_id, cell_id, species,
+majority_ratio)` TSV with species assignments;
+
+## `concatenate_dataset` stage
+
+A `gather` stage (`group_by: data_download`) that collects every pool's `filtered_h5ad` and
+`demultiplexed_tsv`, concatenates them into one h5ad per logical dataset, and joins species labels
+onto `obs` by `(pool_id, cell_id)`.
+
+## Known issues
+
+- **`group_by` conflates downstream method choices.** `group_by: data_download` only partitions by
+  the ancestor module of `data_download` — it does not keep the `cleaning` stage's method choice
+  (`decontx` theta=true/false vs. `no_cleaning`) as separate groups, so `concatenate_dataset`
+  currently receives all 3 cleaning variants of all 4 pools mixed together and the join blows up.
+- **No `FILT` stage yet.** `FILT`'s script (`scrapper`) expects its h5ad input under the  id `rawdata_h5ad` (its schema    hardcodes `--rawdata_h5ad`), so re-adding it means renaming `concatenate_dataset`'s `dataset_h5ad` output to `rawdata_h5ad` (or adjusting `FILT`'s `inputs:`) to match.
