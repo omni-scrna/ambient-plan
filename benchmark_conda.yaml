@@ -118,17 +118,18 @@ stages:
           commit: 0a8b0c4
           entrypoint: demultiplex
 
-  # ── Gather (concatenate pools into one h5ad per logical dataset) ──────
-  # group_by: data_download partitions members by the ancestor *module* of
-  # data_download (d_hgmm today; a future second dataset would be a sibling
-  # module there, e.g. d_otherdataset, forming its own group).
+  # ── Close the foreach (concatenate pools into one h5ad per lineage) ────
+  # over: pool_id collapses only the pools: one concatenate node per upstream
+  # lineage (dataset module × cell_calling × cleaning variant × demultiplexing),
+  # each receiving every pool's filtered_h5ad and demultiplexed_tsv in the same
+  # sorted order. A gather with group_by: data_download would instead keep
+  # only the dataset module and merge the cleaning variants into one node.
 
   - id: concatenate_dataset
-    gather:
-      - from: filtered_h5ad
-        group_by: data_download
-      - from: demultiplexed_tsv
-        group_by: data_download
+    inputs:
+      - filtered_h5ad
+      - demultiplexed_tsv
+    over: pool_id
     outputs:
       - id: dataset_h5ad
         path: "{name}.h5ad"
