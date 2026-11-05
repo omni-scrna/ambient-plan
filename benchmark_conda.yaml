@@ -39,8 +39,8 @@ stages:
         name: "HGMM dataset downloads"
         software_environment: r_conda
         repository:
-          url: /projects/site/pred/neurogenomics/users/kodermam/omni-scrna/ambient-data-download
-          commit: main
+          url: https://github.com/omni-scrna/ambient-data-download
+          commit: e4b1c25
         parameters:
           - mixed_species: true
             batch_var: null
@@ -58,8 +58,8 @@ stages:
         name: "EmptyDrops cell calling"
         software_environment: r_conda
         repository:
-          url: /projects/site/pred/neurogenomics/users/kodermam/omni-scrna/cell-calling
-          commit: main
+          url: https://github.com/omni-scrna/cell-calling
+          commit: 174209a
 
   - id: cleaning
     inputs:
@@ -73,8 +73,8 @@ stages:
         name: "DecontX ambient removal"
         software_environment: r_cleaning
         repository:
-          url: /projects/site/pred/neurogenomics/users/kodermam/omni-scrna/ambient-r
-          commit: main
+          url: https://github.com/omni-scrna/ambient-r
+          commit: 532dd48
           entrypoint: decontx
         parameters:
           - use_background: ["true", "false"]
@@ -82,8 +82,8 @@ stages:
         name: "No ambient removal"
         software_environment: r_cleaning
         repository:
-          url: /projects/site/pred/neurogenomics/users/kodermam/omni-scrna/ambient-r
-          commit: main
+          url: https://github.com/omni-scrna/ambient-r
+          commit: 532dd48
           entrypoint: passthrough
 
 
@@ -99,8 +99,8 @@ stages:
   #       software_environment: cellbender
   #       requires_capabilities: [gpu]
   #       repository:
-  #         url: /projects/site/pred/neurogenomics/users/kodermam/omni-scrna/ambient-py
-  #         commit: main
+  #         url: https://github.com/omni-scrna/ambient-py
+  #         commit: 9d28c32
   #         entrypoint: cellbender
 
   - id: demultiplexing
@@ -114,8 +114,8 @@ stages:
         name: "Species demultiplexing"
         software_environment: py_conda
         repository:
-          url: /projects/site/pred/neurogenomics/users/kodermam/omni-scrna/demultiplexing
-          commit: main
+          url: https://github.com/omni-scrna/demultiplexing
+          commit: 0a8b0c4
           entrypoint: demultiplex
 
   # ── Gather (concatenate pools into one h5ad per logical dataset) ──────
@@ -137,6 +137,6 @@ stages:
         name: "Concatenate pools, join species labels"
         software_environment: py_conda
         repository:
-          url: /projects/site/pred/neurogenomics/users/kodermam/omni-scrna/demultiplexing
-          commit: main
+          url: https://github.com/omni-scrna/demultiplexing
+          commit: 0a8b0c4
           entrypoint: concatenate
