@@ -1,0 +1,11 @@
+# TODO: regenerate via `pixi workspace export conda-environment` from demultiplexing/pixi.toml
+name: py_conda
+channels:
+- conda-forge
+- nodefaults
+dependencies:
+- python >=3.11
+- scanpy *
+- anndata *
+- h5py *
+- pandas *

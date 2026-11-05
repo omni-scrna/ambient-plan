@@ -1,0 +1,12 @@
+# TODO: regenerate via `pixi workspace export conda-environment` in cell-calling/
+name: r_droputils
+channels:
+- conda-forge
+- bioconda
+- nodefaults
+dependencies:
+- r-base >=4.4
+- bioconductor-dropletutils *
+- bioconductor-anndatar *
+- bioconductor-singlecellexperiment *
+- r-optparse *
