@@ -25,6 +25,12 @@ software_environments:
   py_conda:
     name: Python env (demultiplexing)
     conda: envs/py_conda.yml
+  py_cleaning:
+    name: Python ambient removal methods (scAR)
+    conda: envs/py_cleaning.yml
+  cellclear:
+    name: CellClear (pip-only, own pinned env)
+    conda: envs/cellclear.yml
 
 stages:
   - id: data_download
@@ -85,6 +91,24 @@ stages:
           url: https://github.com/omni-scrna/ambient-r
           commit: 532dd48
           entrypoint: passthrough
+      - id: scar
+        name: "scAR ambient removal"
+        software_environment: py_cleaning
+        repository:
+          url: https://github.com/omni-scrna/ambient-py
+          commit: feat/scar-cellclear
+          entrypoint: scar
+        parameters:
+          - epochs: "200"
+      - id: cellclear
+        name: "CellClear ambient removal"
+        software_environment: cellclear
+        resources:
+          cores: 4   # CellClear runs 4 worker processes (hard-coded)
+        repository:
+          url: https://github.com/omni-scrna/ambient-py
+          commit: feat/scar-cellclear
+          entrypoint: cellclear
 
 
   # - id: cell_calling_and_cleaning

@@ -1,0 +1,13 @@
+# TODO: regenerate via `pixi workspace export conda-environment` in ambient-py/
+# (hand-written 2026-11-06). CellClear 0.0.3 is pip-only and pins exact versions
+# (scanpy==1.9.3, anndata==0.8.0, numpy==1.26.4, pandas==2.2.2, ...), so it gets
+# its own env instead of sharing py_cleaning with scAR.
+name: cellclear
+channels:
+- conda-forge
+- nodefaults
+dependencies:
+- python =3.10
+- pip
+- pip:
+  - cellclear==0.0.3
