@@ -118,17 +118,11 @@ stages:
           commit: 0a8b0c4
           entrypoint: demultiplex
 
-  # ── Gather (concatenate pools into one h5ad per logical dataset) ──────
-  # group_by: data_download partitions members by the ancestor *module* of
-  # data_download (d_hgmm today; a future second dataset would be a sibling
-  # module there, e.g. d_otherdataset, forming its own group).
-
   - id: concatenate_dataset
-    gather:
-      - from: filtered_h5ad
-        group_by: data_download
-      - from: demultiplexed_tsv
-        group_by: data_download
+    inputs:
+      - filtered_h5ad
+      - demultiplexed_tsv
+    over: pool_id
     outputs:
       - id: dataset_h5ad
         path: "{name}.h5ad"
