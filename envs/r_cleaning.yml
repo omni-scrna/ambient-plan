@@ -18,3 +18,5 @@ dependencies:
 - bioconductor-scuttle *
 - r-seurat >=5
 - r-remotes *
+- r-data.table *
+- r-babelgene *

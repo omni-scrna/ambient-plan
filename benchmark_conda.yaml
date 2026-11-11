@@ -11,20 +11,20 @@ software_backend: "conda"
 
 software_environments:
   r_conda:
-    name: R conda env (for data download and cell calling)
+    name: R conda env (data download, cell calling, demultiplexing, concatenation)
     conda: envs/r.yml
   r_cleaning:
     name: R ambient removal methods (DecontX)
     conda: envs/r_cleaning.yml
+  r_doublets:
+    name: R doublet detection (scDblFinder)
+    conda: envs/r_doublets.yml
   scrapper:
     name: scrapper (filtering)
     conda: envs/scrapper.yml
   #cellbender:
   #  name: CellBender
   #  conda: envs/cellbender.yml
-  py_conda:
-    name: Python env (demultiplexing)
-    conda: envs/py_conda.yml
 
 stages:
   - id: data_download
@@ -35,21 +35,47 @@ stages:
       - id: properties_info
         path: "{name}_properties.yaml"
     modules:
-      - id: d_hgmm
+      - id: d_mixed_species
         name: "HGMM dataset downloads"
         software_environment: r_conda
         repository:
           url: https://github.com/omni-scrna/ambient-data-download
           commit: e4b1c25
         parameters:
-          - mixed_species: true
-            batch_var: null
-            sample_var: null
-            labels_var: species
-
+          - dataset_name: hgmm_10x
+            batch_var: pool_id
+            sample_var: sample_id
+            labels_var: null
+            tenx_assay: polyA
+      - id: d_hto
+        name: "HTO-hashed dataset downloads"
+        software_environment: r_conda
+        repository:
+          url: https://github.com/omni-scrna/ambient-data-download
+          commit: e4b1c25
+        parameters:
+          - dataset_name: human_pbmcs_hto_10x
+            batch_var: pool_id
+            sample_var: sample_id
+            labels_var: null
+            tenx_assay: polyA
+      - id: d_flex
+        name: "Flex dataset downloads"
+        software_environment: r_conda
+        repository:
+          url: https://github.com/omni-scrna/ambient-data-download
+          commit: e4b1c25
+        parameters:
+          - dataset_name: mouse_cell_lines_flex_10x
+            batch_var: pool_id
+            sample_var: sample_id
+            labels_var: cell_line
+            tenx_assay: flex
+            
   - id: cell_calling
     inputs:
       - rawdata_h5ad
+      - properties_info
     outputs:
       - id: called_cells_tsv
         path: "{name}_called_cells.tsv"
@@ -60,6 +86,39 @@ stages:
         repository:
           url: https://github.com/omni-scrna/cell-calling
           commit: 174209a
+
+  - id: demultiplexing
+    inputs:
+      - rawdata_h5ad
+      - called_cells_tsv
+    outputs:
+      - id: demultiplexed_tsv
+        path: "{name}_demultiplexed.tsv"
+    modules:
+      - id: dm_mixed_species
+        name: "Species demultiplexing"
+        exclude: [d_hto, d_flex]
+        software_environment: r_conda
+        repository:
+          url: https://github.com/omni-scrna/demultiplexing
+          commit: 0a8b0c4
+          entrypoint: demultiplex_mixed_species
+      - id: dm_hto
+        name: "HTO demultiplexing"
+        exclude: [d_mixed_species, d_flex]
+        software_environment: r_conda
+        repository:
+          url: https://github.com/omni-scrna/demultiplexing
+          commit: 0a8b0c4
+          entrypoint: demultiplex_hto
+      - id: dm_flex
+        name: "Flex demultiplexing"
+        exclude: [d_mixed_species, d_hto]
+        software_environment: r_conda
+        repository:
+          url: https://github.com/omni-scrna/demultiplexing
+          commit: 0a8b0c4
+          entrypoint: demultiplex_flex
 
   - id: cleaning
     inputs:
@@ -103,20 +162,6 @@ stages:
   #         commit: 9d28c32
   #         entrypoint: cellbender
 
-  - id: demultiplexing
-    inputs:
-      - filtered_h5ad
-    outputs:
-      - id: demultiplexed_tsv
-        path: "{name}_demultiplexed.tsv"
-    modules:
-      - id: dm_mixed_species
-        name: "Species demultiplexing"
-        software_environment: py_conda
-        repository:
-          url: https://github.com/omni-scrna/demultiplexing
-          commit: 0a8b0c4
-          entrypoint: demultiplex
 
   - id: concatenate_dataset
     inputs:
@@ -129,8 +174,24 @@ stages:
     modules:
       - id: concatenate
         name: "Concatenate pools, join species labels"
-        software_environment: py_conda
+        software_environment: r_conda
         repository:
           url: https://github.com/omni-scrna/demultiplexing
           commit: 0a8b0c4
           entrypoint: concatenate
+
+  - id: doublets
+    inputs:
+      - dataset_h5ad
+    outputs:
+      - id: doublets_tsv
+        path: "{name}_doublets.tsv"
+    modules:
+      - id: scdblfinder
+        name: "scDblFinder doublet detection"
+        software_environment: r_doublets
+        repository:
+          url: https://github.com/omni-scrna/doublets-r
+          commit: main
+
+
