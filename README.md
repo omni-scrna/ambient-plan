@@ -5,7 +5,7 @@ existing `omni-scrna` modules, to test whether ambient RNA removal can be merged
 benchmark. For now it only covers the mixed human/mouse HGMM datasets (no `be1`/non-ambient
 datasets) and only `decontx`/no-cleaning (`CellBender` is wired in but disabled, see below).
 
-**Experimental:** this plan uses `foreach` and `gather`, features that only exist on
+**Experimental:** this plan uses the `foreach` feature that only exist on
 omnibenchmark's unreleased `feat/foreach-outputs` branch (requires `api_version: "0.8.0"`,
 installed via `pip install git+https://github.com/omnibenchmark/omnibenchmark.git@feat/foreach-outputs`)
 
