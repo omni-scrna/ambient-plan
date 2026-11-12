@@ -1,59 +1,58 @@
 # ambient-rna-benchmark
 
-This repo contains a benchmark plan which combines modules for ambient RNA removal with some
-existing `omni-scrna` modules, to test whether ambient RNA removal can be merged with the existing
-benchmark. For now it only covers the mixed human/mouse HGMM datasets (no `be1`/non-ambient
-datasets) and only `decontx`/no-cleaning (`CellBender` is wired in but disabled, see below).
+This repo contains a benchmark plan for ambient RNA removal methods, covering three dataset types, each with its own `demultiplexing` module:
 
-**Experimental:** this plan uses the `foreach` feature that only exist on
-omnibenchmark's unreleased `feat/foreach-outputs` branch (requires `api_version: "0.8.0"`,
-installed via `pip install git+https://github.com/omnibenchmark/omnibenchmark.git@feat/foreach-outputs`)
+- **mixed-species
+- **HTO-hashed** 
+- **Flex (probe-based)**
 
-Stages: `data_download → cell_calling → cleaning → demultiplexing → concatenate_dataset`.
-There is currently no `FILT` stage (see [Known issues](#known-issues)).
+**Experimental:** this plan uses the `foreach`/`over` features that exist on omnibenchmark's unreleased `feat/foreach-outputs` branch (requires `api_version: "0.8.0"`, installed via `pip install git+https://github.com/omnibenchmark/omnibenchmark.git@feat/foreach-outputs`).
+
+Stages: `data_download → cell_calling → demultiplexing → cleaning → concatenate_dataset → doublets`. 
 
 ## `data_download` stage
 
-One module, `d_hgmm`, downloads all 4 HGMM pools and decides the `pool_id` values at runtime via `foreach: pool_id` on its `rawdata_h5ad` output (`path: "{pool_id}/raw.h5ad"`) — omnibenchmark discovers the pool directories by globbing after the module runs, and every stage below fans out automatically, one node per discovered pool. `properties_info` (`mixed_species`/`batch_var`/`sample_var`/`labels_var`) is a single output shared across all pools, since those values don't vary by pool for this dataset.
+Three modules, one per dataset type, each deciding `pool_id` values at runtime via `foreach: pool_id` on the shared `rawdata_h5ad` output (`path: "{pool_id}/raw.h5ad"`):
+
+- `d_mixed_species` (`hgmm_10x`) — downloads 4 HGMM pools. Adds `rowData$species` (from the `GRCh*_`/`GRCm*_`genome prefix on each gene name)
+- `d_hto` (`human_pbmcs_hto_10x`) — downloads the TotalSeq-hashed PBMC pool, parses the cellranger-multi config CSV into a `sample_id, hto_id` lookup, and attaches it to an `sce` object as `metadata(sce)$pool_lookup`.
+- `d_flex`(`mouse_cell_lines_flex_10x`) — downloads the Flex mouse cell-line pool. Each column in the raw matrix is `{16bp GEM barcode}{8bp probe barcode}`; probe barcode is mapped to `probe_id` using 10x's fixed probe barcodes lookup file; parses the cellranger-multi config CSV into a `sample_id, probe_id` lookup, and attaches it to an `sce` object as `metadata(sce)$pool_lookup`.
+
+`properties_info` (`batch_var`/`sample_var`/`labels_var`/`tenx_assay`) is a single output shared
+across all pools of a dataset, since those values don't vary by pool.
 
 ## `cell_calling` stage
 
-One module, `emptydrops`, runs `EmptyDrops` per pool and writes the called cell barcodes. Species
-assignment does *not* happen here (see `demultiplexing` below) — this stage is pool-count-agnostic
-and dataset-property-agnostic by design.
-
-## `cleaning` stage
-
-Two modules:
-- `decontx` — runs DecontX, either in default mode or using the raw matrix as background
-  (`use_background: true|false`), on the called cells.
-- `no_cleaning` — subsets the raw counts to the called-cell barcodes with
-  no correction applied.
-
-Both just output the (corrected or uncorrected) matrix as `filtered_h5ad` — no dataset-level
-metadata, no species labels.
-
-A third option, `cell_calling_and_cleaning` (`CellBender`, which does both calling and ambient
-removal in one step), is implemented but commented out in `benchmark_conda.yaml` pending GPU
-testing (`requires_capabilities: [gpu]`).
+One module, `emptydrops`, runs `EmptyDrops` per pool and writes a TSV with all barcode called as cells. Exception if Flex data - `emptyDrops` runs separately for each `probe_id` in a pool.
 
 ## `demultiplexing` stage
 
-One module, `dm_mixed_species`, assigns each called cell to human/mouse/ambiguous based on the
-ratio of `GRCh38_`/`GRCm39_`-prefixed gene counts — **in the cleaned matrix**, i.e. species
-assignment runs after ambient removal, not on raw counts. Writes a `(pool_id, cell_id, species,
-majority_ratio)` TSV with species assignments;
+Contains 3 modules, one for each data type/module in the `data_download` stage:
+
+- `dm_mixed_species` — cellranger's own barnyard algorithm: the Nth percentile of same-species-dominant counts sets a per-species threshold; a barcode clearing
+  *both* the human and mouse thresholds is a multiplet. Output columns: `pool_id, cell_id, species, sample_id, multiplet` (`sample_id` is `"{pool_id}_{species}"`, `NA` for multiplets).
+- `dm_hto` — Seurat's standard `HTODemux` workflow. Output columns: `pool_id, cell_id, hto_id, class, multiplet, sample_id` (`sample_id` is `NA` for both Doublet and Negative).
+- `dm_flex` — `probe_id` (already in `colData`) is joined with `pool_lookup` so thet every probe is assigned to the original `sample_id`; if the same GEM was called as a cell for more than one `probe_id`, every `cell_id` sharing GEM barcode is flagged as a multiplet.
+
+## `cleaning` stage
+
+Two modules, both in `ambient-r`:
+- `decontx` — runs DecontX, either in default mode or using the raw matrix as background(`use_background: true|false`), on the called cells.
+- `no_cleaning` — subsets the raw counts to the called-cell barcodes with no correction applied.
+
+At the moment `run_decontx.R` does two extra dataset-specific transforms to the raw matrix:
+
+- **Ortholog merging**: finds human-mouse orthologs using the `babelgene` package and sums ortholog counts (the matrix only contains merged features, species-specific features are removed).
+- **GEM merging**: collapses the raw matrix with GEM × `probe_id` pseudo-cells down to one column per physical GEM barcode before.
+
+`no_cleaning` does neither of these at the moment so the output isn't directly comparable in shape to `decontx`'s output.
 
 ## `concatenate_dataset` stage
 
-A `gather` stage (`group_by: data_download`) that collects every pool's `filtered_h5ad` and
-`demultiplexed_tsv`, concatenates them into one h5ad per logical dataset, and joins species labels
-onto `obs` by `(pool_id, cell_id)`.
+An `over: pool_id` stage that collects every pool's `filtered_h5ad` and `demultiplexed_tsv` for one dataset.
 
-## Known issues
+## `doublets` stage
 
-- **`group_by` conflates downstream method choices.** `group_by: data_download` only partitions by
-  the ancestor module of `data_download` — it does not keep the `cleaning` stage's method choice
-  (`decontx` theta=true/false vs. `no_cleaning`) as separate groups, so `concatenate_dataset`
-  currently receives all 3 cleaning variants of all 4 pools mixed together and the join blows up.
-- **No `FILT` stage yet.** `FILT`'s script (`scrapper`) expects its h5ad input under the  id `rawdata_h5ad` (its schema    hardcodes `--rawdata_h5ad`), so re-adding it means renaming `concatenate_dataset`'s `dataset_h5ad` output to `rawdata_h5ad` (or adjusting `FILT`'s `inputs:`) to match.
+Runs after `concatenate_dataset`, on the whole merged dataset at once (not per pool). A single `scDblFinder()` call uses its own `samples = "pool_id"` argument so doublets are searched for independently within each pool.
+
+
