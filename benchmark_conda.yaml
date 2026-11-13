@@ -107,7 +107,7 @@ stages:
         software_environment: r_conda
         repository:
           url: https://github.com/omni-scrna/demultiplexing
-          commit: 0a8b0c4
+          commit: 6d04d60
           entrypoint: demultiplex_mixed_species
       - id: dm_hto
         name: "HTO demultiplexing"
@@ -115,7 +115,7 @@ stages:
         software_environment: r_conda
         repository:
           url: https://github.com/omni-scrna/demultiplexing
-          commit: 0a8b0c4
+          commit: 6d04d60
           entrypoint: demultiplex_hto
       - id: dm_flex
         name: "Flex demultiplexing"
@@ -123,7 +123,7 @@ stages:
         software_environment: r_conda
         repository:
           url: https://github.com/omni-scrna/demultiplexing
-          commit: 0a8b0c4
+          commit: 6d04d60
           entrypoint: demultiplex_flex
 
   - id: cleaning
@@ -201,7 +201,7 @@ stages:
         software_environment: r_conda
         repository:
           url: https://github.com/omni-scrna/demultiplexing
-          commit: 0a8b0c4
+          commit: 6d04d60
           entrypoint: concatenate
 
   - id: doublets
