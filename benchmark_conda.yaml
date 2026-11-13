@@ -46,7 +46,7 @@ stages:
         software_environment: r_conda
         repository:
           url: https://github.com/omni-scrna/ambient-data-download
-          commit: e4b1c25
+          commit: 8064b49
         parameters:
           - dataset_name: hgmm_10x
             batch_var: pool_id
@@ -58,7 +58,7 @@ stages:
         software_environment: r_conda
         repository:
           url: https://github.com/omni-scrna/ambient-data-download
-          commit: e4b1c25
+          commit: 8064b49
         parameters:
           - dataset_name: human_pbmcs_hto_10x
             batch_var: pool_id
@@ -70,7 +70,7 @@ stages:
         software_environment: r_conda
         repository:
           url: https://github.com/omni-scrna/ambient-data-download
-          commit: e4b1c25
+          commit: 8064b49
         parameters:
           - dataset_name: mouse_cell_lines_flex_10x
             batch_var: pool_id
@@ -91,7 +91,7 @@ stages:
         software_environment: r_conda
         repository:
           url: https://github.com/omni-scrna/cell-calling
-          commit: 174209a
+          commit: 530427f
 
   - id: demultiplexing
     inputs:
