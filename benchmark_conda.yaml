@@ -130,7 +130,7 @@ stages:
           commit: 6d04d60
           entrypoint: demultiplex_flex
 
-  - id: cleaning
+  - id: ambient_removal
     inputs:
       - rawdata_h5ad
       - called_cells_tsv
@@ -174,7 +174,7 @@ stages:
           entrypoint: cellclear
 
 
-  # - id: cell_calling_and_cleaning
+  # - id: cell_calling_and_ambient_removal
   #   inputs:
   #     - rawdata_h5ad
   #   outputs:
