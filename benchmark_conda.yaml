@@ -34,6 +34,7 @@ software_environments:
 
 stages:
   - id: data_download
+    provides: [multiplexing]   # lineage label; demultiplexing modules gate on it with `requires`
     outputs:
       - id: rawdata_h5ad
         path: "{pool_id}/raw.h5ad"
@@ -43,6 +44,7 @@ stages:
     modules:
       - id: d_mixed_species
         name: "HGMM dataset downloads"
+        provides: {multiplexing: mixed_species}
         software_environment: r_conda
         repository:
           url: https://github.com/omni-scrna/ambient-data-download
@@ -55,6 +57,7 @@ stages:
             tenx_assay: polyA
       - id: d_hto
         name: "HTO-hashed dataset downloads"
+        provides: {multiplexing: hto}
         software_environment: r_conda
         repository:
           url: https://github.com/omni-scrna/ambient-data-download
@@ -67,6 +70,7 @@ stages:
             tenx_assay: polyA
       - id: d_flex
         name: "Flex dataset downloads"
+        provides: {multiplexing: flex}
         software_environment: r_conda
         repository:
           url: https://github.com/omni-scrna/ambient-data-download
@@ -103,7 +107,7 @@ stages:
     modules:
       - id: dm_mixed_species
         name: "Species demultiplexing"
-        exclude: [d_hto, d_flex]
+        requires: {multiplexing: mixed_species}
         software_environment: r_conda
         repository:
           url: https://github.com/omni-scrna/demultiplexing
@@ -111,7 +115,7 @@ stages:
           entrypoint: demultiplex_mixed_species
       - id: dm_hto
         name: "HTO demultiplexing"
-        exclude: [d_mixed_species, d_flex]
+        requires: {multiplexing: hto}
         software_environment: r_conda
         repository:
           url: https://github.com/omni-scrna/demultiplexing
@@ -119,7 +123,7 @@ stages:
           entrypoint: demultiplex_hto
       - id: dm_flex
         name: "Flex demultiplexing"
-        exclude: [d_mixed_species, d_hto]
+        requires: {multiplexing: flex}
         software_environment: r_conda
         repository:
           url: https://github.com/omni-scrna/demultiplexing
