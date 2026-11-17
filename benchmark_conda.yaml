@@ -33,7 +33,7 @@ software_environments:
     conda: envs/cellclear.yml
 
 stages:
-  - id: data_download
+  - id: DATA_RAW
     provides: [multiplexing]   # lineage label; demultiplexing modules gate on it with `requires`
     outputs:
       - id: rawdata_h5ad
@@ -82,7 +82,7 @@ stages:
             labels_var: cell_line
             tenx_assay: flex
             
-  - id: cell_calling
+  - id: CELLCALL
     inputs:
       - rawdata_h5ad
       - properties_info
@@ -97,7 +97,7 @@ stages:
           url: https://github.com/omni-scrna/cell-calling
           commit: 530427f
 
-  - id: demultiplexing
+  - id: DEMUX
     inputs:
       - rawdata_h5ad
       - called_cells_tsv
@@ -130,7 +130,7 @@ stages:
           commit: 6d04d60
           entrypoint: demultiplex_flex
 
-  - id: ambient_removal
+  - id: AMBIENT
     inputs:
       - rawdata_h5ad
       - called_cells_tsv
@@ -174,7 +174,7 @@ stages:
           entrypoint: cellclear
 
 
-  # - id: cell_calling_and_ambient_removal
+  # - id: CELLCALL_AMBIENT
   #   inputs:
   #     - rawdata_h5ad
   #   outputs:
@@ -191,7 +191,7 @@ stages:
   #         entrypoint: cellbender
 
 
-  - id: concatenate_dataset
+  - id: CONCAT
     inputs:
       - filtered_h5ad
       - demultiplexed_tsv
@@ -208,7 +208,7 @@ stages:
           commit: 6d04d60
           entrypoint: concatenate
 
-  - id: doublets
+  - id: DOUBLET
     inputs:
       - dataset_h5ad
     outputs:
