@@ -159,7 +159,7 @@ stages:
         software_environment: py_cleaning
         repository:
           url: https://github.com/omni-scrna/ambient-py
-          commit: 62d2d48
+          commit: add2335
           entrypoint: scar
         parameters:
           - epochs: "200"
@@ -170,7 +170,7 @@ stages:
           cores: 4   # CellClear runs 4 worker processes (hard-coded)
         repository:
           url: https://github.com/omni-scrna/ambient-py
-          commit: 62d2d48
+          commit: add2335
           entrypoint: cellclear
 
 
