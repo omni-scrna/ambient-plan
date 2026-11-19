@@ -25,9 +25,16 @@ software_environments:
   #cellbender:
   #  name: CellBender
   #  conda: envs/cellbender.yml
+  py_cleaning:
+    name: Python ambient removal methods (scAR)
+    conda: envs/py_cleaning.yml
+  cellclear:
+    name: CellClear (pip-only, own pinned env)
+    conda: envs/cellclear.yml
 
 stages:
-  - id: data_download
+  - id: DATA_RAW
+    provides: [multiplexing]   # lineage label; demultiplexing modules gate on it with `requires`
     outputs:
       - id: rawdata_h5ad
         path: "{pool_id}/raw.h5ad"
@@ -37,10 +44,11 @@ stages:
     modules:
       - id: d_mixed_species
         name: "HGMM dataset downloads"
+        provides: {multiplexing: mixed_species}
         software_environment: r_conda
         repository:
           url: https://github.com/omni-scrna/ambient-data-download
-          commit: e4b1c25
+          commit: 8064b49
         parameters:
           - dataset_name: hgmm_10x
             batch_var: pool_id
@@ -49,10 +57,11 @@ stages:
             tenx_assay: polyA
       - id: d_hto
         name: "HTO-hashed dataset downloads"
+        provides: {multiplexing: hto}
         software_environment: r_conda
         repository:
           url: https://github.com/omni-scrna/ambient-data-download
-          commit: e4b1c25
+          commit: 8064b49
         parameters:
           - dataset_name: human_pbmcs_hto_10x
             batch_var: pool_id
@@ -61,10 +70,11 @@ stages:
             tenx_assay: polyA
       - id: d_flex
         name: "Flex dataset downloads"
+        provides: {multiplexing: flex}
         software_environment: r_conda
         repository:
           url: https://github.com/omni-scrna/ambient-data-download
-          commit: e4b1c25
+          commit: 8064b49
         parameters:
           - dataset_name: mouse_cell_lines_flex_10x
             batch_var: pool_id
@@ -72,7 +82,7 @@ stages:
             labels_var: cell_line
             tenx_assay: flex
             
-  - id: cell_calling
+  - id: CELLCALL
     inputs:
       - rawdata_h5ad
       - properties_info
@@ -85,9 +95,9 @@ stages:
         software_environment: r_conda
         repository:
           url: https://github.com/omni-scrna/cell-calling
-          commit: 174209a
+          commit: 530427f
 
-  - id: demultiplexing
+  - id: DEMUX
     inputs:
       - rawdata_h5ad
       - called_cells_tsv
@@ -97,30 +107,30 @@ stages:
     modules:
       - id: dm_mixed_species
         name: "Species demultiplexing"
-        exclude: [d_hto, d_flex]
+        requires: {multiplexing: mixed_species}
         software_environment: r_conda
         repository:
           url: https://github.com/omni-scrna/demultiplexing
-          commit: 0a8b0c4
+          commit: 6d04d60
           entrypoint: demultiplex_mixed_species
       - id: dm_hto
         name: "HTO demultiplexing"
-        exclude: [d_mixed_species, d_flex]
+        requires: {multiplexing: hto}
         software_environment: r_conda
         repository:
           url: https://github.com/omni-scrna/demultiplexing
-          commit: 0a8b0c4
+          commit: 6d04d60
           entrypoint: demultiplex_hto
       - id: dm_flex
         name: "Flex demultiplexing"
-        exclude: [d_mixed_species, d_hto]
+        requires: {multiplexing: flex}
         software_environment: r_conda
         repository:
           url: https://github.com/omni-scrna/demultiplexing
-          commit: 0a8b0c4
+          commit: 6d04d60
           entrypoint: demultiplex_flex
 
-  - id: cleaning
+  - id: AMBIENT
     inputs:
       - rawdata_h5ad
       - called_cells_tsv
@@ -144,9 +154,27 @@ stages:
           url: https://github.com/omni-scrna/ambient-r
           commit: 532dd48
           entrypoint: passthrough
+      - id: scar
+        name: "scAR ambient removal"
+        software_environment: py_cleaning
+        repository:
+          url: https://github.com/omni-scrna/ambient-py
+          commit: add2335
+          entrypoint: scar
+        parameters:
+          - epochs: "200"
+      - id: cellclear
+        name: "CellClear ambient removal"
+        software_environment: cellclear
+        resources:
+          cores: 4   # CellClear runs 4 worker processes (hard-coded)
+        repository:
+          url: https://github.com/omni-scrna/ambient-py
+          commit: add2335
+          entrypoint: cellclear
 
 
-  # - id: cell_calling_and_cleaning
+  # - id: CELLCALL_AMBIENT
   #   inputs:
   #     - rawdata_h5ad
   #   outputs:
@@ -163,7 +191,7 @@ stages:
   #         entrypoint: cellbender
 
 
-  - id: concatenate_dataset
+  - id: CONCAT
     inputs:
       - filtered_h5ad
       - demultiplexed_tsv
@@ -177,10 +205,10 @@ stages:
         software_environment: r_conda
         repository:
           url: https://github.com/omni-scrna/demultiplexing
-          commit: 0a8b0c4
+          commit: 6d04d60
           entrypoint: concatenate
 
-  - id: doublets
+  - id: DOUBLET
     inputs:
       - dataset_h5ad
     outputs:
