@@ -110,7 +110,7 @@ stages:
         software_environment: r_conda
         repository:
           url: https://github.com/omni-scrna/ambient-clustering
-          commit: feat/clustering
+          commit: a95c834
         parameters:
           - resolution: "1"
 
