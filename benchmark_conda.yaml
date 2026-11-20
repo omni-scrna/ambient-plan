@@ -112,7 +112,7 @@ stages:
           url: https://github.com/omni-scrna/ambient-clustering
           commit: a95c834
         parameters:
-          - resolution: "1"
+          - resolution: ["0.1", "1"]
 
   - id: DEMUX
     inputs:
