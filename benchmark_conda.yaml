@@ -100,6 +100,53 @@ stages:
           url: https://github.com/omni-scrna/cell-calling
           commit: f089cab
 
+  # The count matrix the ambient removal methods run on. Every method runs once
+  # per variant: on the raw counts, and on merged counts where a merge applies
+  # to the dataset (gated on DATA_RAW's `multiplexing` label).
+  - id: PREP
+    provides: [counts]   # lineage label: which variant a downstream node ran on
+    inputs:
+      - rawdata_h5ad
+      - called_cells_tsv
+    outputs:
+      - id: prepared_h5ad
+        path: "{name}_prepared.h5ad"
+      - id: prepared_cells_tsv
+        path: "{name}_prepared_cells.tsv"
+    modules:
+      - id: as_is
+        name: "Raw counts and called cells, unchanged"
+        provides: {counts: raw}
+        software_environment: r_cleaning
+        repository:
+          url: https://github.com/omni-scrna/ambient-r
+          commit: 17a9b36
+          entrypoint: prep
+        parameters:
+          - merge: none
+      - id: merge_orthologs
+        name: "Human and mouse 1:1 orthologs summed into one feature"
+        requires: {multiplexing: mixed_species}
+        provides: {counts: orthologs}
+        software_environment: r_cleaning
+        repository:
+          url: https://github.com/omni-scrna/ambient-r
+          commit: 17a9b36
+          entrypoint: prep
+        parameters:
+          - merge: orthologs
+      - id: merge_gems
+        name: "GEM x probe columns of one GEM barcode summed into one cell"
+        requires: {multiplexing: flex}
+        provides: {counts: gems}
+        software_environment: r_cleaning
+        repository:
+          url: https://github.com/omni-scrna/ambient-r
+          commit: 17a9b36
+          entrypoint: prep
+        parameters:
+          - merge: gems
+
   - id: CLUSTER
     inputs:
       - rawdata_h5ad
@@ -152,8 +199,8 @@ stages:
 
   - id: AMBIENT
     inputs:
-      - rawdata_h5ad
-      - called_cells_tsv
+      - prepared_h5ad
+      - prepared_cells_tsv
     outputs:
       - id: filtered_h5ad
         path: "{name}.h5ad"
@@ -163,7 +210,7 @@ stages:
         software_environment: r_cleaning
         repository:
           url: https://github.com/omni-scrna/ambient-r
-          commit: 532dd48
+          commit: 17a9b36
           entrypoint: decontx
         parameters:
           - use_background: ["true", "false"]
@@ -172,14 +219,14 @@ stages:
         software_environment: r_cleaning
         repository:
           url: https://github.com/omni-scrna/ambient-r
-          commit: 532dd48
+          commit: 17a9b36
           entrypoint: passthrough
       - id: scar
         name: "scAR ambient removal"
         software_environment: py_cleaning
         repository:
           url: https://github.com/omni-scrna/ambient-py
-          commit: add2335
+          commit: a1bf4dd
           entrypoint: scar
         parameters:
           - epochs: "200"
@@ -190,7 +237,7 @@ stages:
           cores: 4   # CellClear runs 4 worker processes (hard-coded)
         repository:
           url: https://github.com/omni-scrna/ambient-py
-          commit: add2335
+          commit: a1bf4dd
           entrypoint: cellclear
 
 
@@ -211,9 +258,10 @@ stages:
   #         entrypoint: cellbender
 
 
+  # Each method's output against the matrix it was given (its PREP variant).
   - id: AMBIENT_M
     inputs:
-      - rawdata_h5ad
+      - prepared_h5ad
       - filtered_h5ad
       - demultiplexed_tsv
     outputs:
@@ -225,7 +273,29 @@ stages:
         software_environment: py_metrics
         repository:
           url: https://github.com/omni-scrna/ambient-metrics
-          commit: feat/ambient-metrics
+          commit: f056586
+
+  # Raw vs. merged counts, per method: does removing ambient RNA and then
+  # merging give what merging first gives? One node per dataset (`group_by`),
+  # cell caller and method + parameters (`split_by`); its members are that
+  # method's outputs on every PREP variant and pool. PREP is not named, so its
+  # variants land in the same node.
+  - id: MERGE_M
+    gather:
+      from: [filtered_h5ad]
+      group_by: DATA_RAW
+      split_by: [CELLCALL, AMBIENT]
+    outputs:
+      - id: merge_metrics_json
+        path: "{name}_merge_metrics.json"
+    modules:
+      - id: merge_metrics
+        name: "Method output on raw vs. merged counts"
+        software_environment: py_metrics
+        repository:
+          url: https://github.com/omni-scrna/ambient-metrics
+          commit: f056586
+          entrypoint: compare
 
   - id: CONCAT
     inputs:
@@ -241,7 +311,7 @@ stages:
         software_environment: r_conda
         repository:
           url: https://github.com/omni-scrna/demultiplexing
-          commit: 6d04d60
+          commit: 397aa71
           entrypoint: concatenate
 
   - id: DOUBLET
