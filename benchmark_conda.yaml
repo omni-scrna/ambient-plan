@@ -48,7 +48,7 @@ stages:
         software_environment: r_conda
         repository:
           url: https://github.com/omni-scrna/ambient-data-download
-          commit: 8064b49
+          commit: 70d02db
         parameters:
           - dataset_name: hgmm_10x
             batch_var: pool_id
@@ -61,7 +61,7 @@ stages:
         software_environment: r_conda
         repository:
           url: https://github.com/omni-scrna/ambient-data-download
-          commit: 8064b49
+          commit: 70d02db
         parameters:
           - dataset_name: human_pbmcs_hto_10x
             batch_var: pool_id
@@ -74,7 +74,7 @@ stages:
         software_environment: r_conda
         repository:
           url: https://github.com/omni-scrna/ambient-data-download
-          commit: 8064b49
+          commit: 70d02db
         parameters:
           - dataset_name: mouse_cell_lines_flex_10x
             batch_var: pool_id
@@ -95,7 +95,24 @@ stages:
         software_environment: r_conda
         repository:
           url: https://github.com/omni-scrna/cell-calling
-          commit: 530427f
+          commit: f089cab
+
+  - id: QUICKCLUST
+    inputs:
+      - rawdata_h5ad
+      - called_cells_tsv
+    outputs:
+      - id: clusters_tsv
+        path: "{name}_clusters.tsv"
+    modules:
+      - id: scrapper_louvain
+        name: "scrapper graph clustering (HVGs, PCA, SNN, multilevel/Louvain)"
+        software_environment: r_conda
+        repository:
+          url: https://github.com/omni-scrna/ambient-clustering
+          commit: a95c834
+        parameters:
+          - resolution: ["0.1", "1"]
 
   - id: DEMUX
     inputs:
