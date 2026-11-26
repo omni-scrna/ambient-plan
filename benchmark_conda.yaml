@@ -100,7 +100,7 @@ stages:
           url: https://github.com/omni-scrna/cell-calling
           commit: f089cab
 
-  - id: CLUSTER
+  - id: QUICKCLUST
     inputs:
       - rawdata_h5ad
       - called_cells_tsv
