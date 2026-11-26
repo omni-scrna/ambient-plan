@@ -31,6 +31,9 @@ software_environments:
   cellclear:
     name: CellClear (pip-only, own pinned env)
     conda: envs/cellclear.yml
+  py_metrics:
+    name: Python metrics (ambient-metrics)
+    conda: envs/py_metrics.yml
 
 stages:
   - id: DATA_RAW
@@ -207,6 +210,22 @@ stages:
   #         commit: 9d28c32
   #         entrypoint: cellbender
 
+
+  - id: AMBIENT_M
+    inputs:
+      - rawdata_h5ad
+      - filtered_h5ad
+      - demultiplexed_tsv
+    outputs:
+      - id: ambient_metrics_json
+        path: "{name}_ambient_metrics.json"
+    modules:
+      - id: ambient_metrics
+        name: "Count inflation + barnyard (cross-species) metrics"
+        software_environment: py_metrics
+        repository:
+          url: https://github.com/omni-scrna/ambient-metrics
+          commit: 33cbc07
 
   - id: CONCAT
     inputs:
