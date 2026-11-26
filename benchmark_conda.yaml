@@ -225,7 +225,7 @@ stages:
         software_environment: py_metrics
         repository:
           url: https://github.com/omni-scrna/ambient-metrics
-          commit: feat/ambient-metrics
+          commit: 33cbc07
 
   - id: CONCAT
     inputs:
