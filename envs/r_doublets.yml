@@ -7,6 +7,7 @@ dependencies:
   - bioconductor-scdblfinder
   - bioconductor-singlecellexperiment
   - bioconductor-anndatar
+  - bioconductor-rhdf5   # anndataR needs it to read h5ad (only a Suggests)
   - r-data.table
   - r-argparser
   - r-jsonlite
