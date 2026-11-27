@@ -98,7 +98,9 @@ stages:
         software_environment: r_conda
         repository:
           url: https://github.com/omni-scrna/cell-calling
-          commit: f089cab
+          commit: ad3f869   # feat/emptydrops-cellranger (PR #2)
+        parameters:
+          - method: emptydrops_cellranger
 
   - id: QUICKCLUST
     inputs:
@@ -181,6 +183,8 @@ stages:
           url: https://github.com/omni-scrna/ambient-py
           commit: add2335
           entrypoint: scar
+        resources:
+          gpu: 1   # Snakemake resource nvidia_gpu; run_scar.py uses cuda when torch sees it
         parameters:
           - epochs: "200"
       - id: cellclear
@@ -188,6 +192,7 @@ stages:
         software_environment: cellclear
         resources:
           cores: 4   # CellClear runs 4 worker processes (hard-coded)
+          mem_mb: 130000   # V1 peak on 10k HGMM pools: 130 GB; lets Snakemake run one CellClear at a time
         repository:
           url: https://github.com/omni-scrna/ambient-py
           commit: add2335
