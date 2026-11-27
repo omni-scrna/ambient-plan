@@ -149,7 +149,7 @@ stages:
         software_environment: r_conda
         repository:
           url: https://github.com/omni-scrna/demultiplexing
-          commit: 6d04d60
+          commit: ff35d78   # fix/flex-merge (merge(...) typo)
           entrypoint: demultiplex_flex
 
   - id: AMBIENT
