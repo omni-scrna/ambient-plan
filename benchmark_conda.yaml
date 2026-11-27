@@ -167,6 +167,8 @@ stages:
           url: https://github.com/omni-scrna/ambient-r
           commit: 532dd48
           entrypoint: decontx
+        resources:
+          mem_mb: 20000   # seen 2026-11-27 on roland: 8-16 GB RSS per job (6 in parallel)
         parameters:
           - use_background: ["true", "false"]
       - id: no_cleaning
@@ -185,6 +187,7 @@ stages:
           entrypoint: scar
         resources:
           gpu: 1   # Snakemake resource nvidia_gpu; run_scar.py uses cuda when torch sees it
+          mem_mb: 60000   # V1 (HGMM, CPU): 24-40 GB peak; margin for HTO/Flex (not measured)
         parameters:
           - epochs: "200"
       - id: cellclear
@@ -246,7 +249,7 @@ stages:
         software_environment: r_conda
         repository:
           url: https://github.com/omni-scrna/demultiplexing
-          commit: 6d04d60
+          commit: 06a84e2   # fix/concat-dimnames (stale dimnames, from Ben's 397aa71)
           entrypoint: concatenate
 
   - id: DOUBLET
